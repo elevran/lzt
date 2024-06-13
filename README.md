@@ -7,13 +7,13 @@ eBPF and mTLS experiments
 Demonstrate the use of supervisors to exchange data on existing connection. The demo
  connection uses an echo client and server. Both pause after connecting and before
  any data is exchanged. Currently suspension is handled by voluntary call to
- syscall.Kill(syscall.GetPid, syscall.SIGSTOP), but this shall be replaced by
+ `syscall.Kill(syscall.GetPid, syscall.SIGSTOP)`, but this shall be replaced by
  eBPF/system call interception.
  Supervisors (`maitred`) are invoked with the process id to monitor (printed by
  `echo-client` and `echo-server` on start-up) and the file descriptor of the newly
  created socket (typically fd #4 on the server and #3 on the client).
  The supervisors exchange PING/PONG messages and then resume the suspended echo
- processes.
+ processes. The PING/PONG can be later replaced by AuthN/AuthZ (e.g., mTLS).
 
 1. Build executables
 
