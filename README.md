@@ -17,15 +17,15 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 
 1. Build executables
 
-   ```bash
-   go build -o echo-server cmd/echo-server/main.go
-   go build -o echo-client cmd/echo-client/main.go
-   go build -o maitred cmd/maitred/main.go  
+   ```console
+   $ go build -o echo-server cmd/echo-server/main.go
+   $ go build -o echo-client cmd/echo-client/main.go
+   $ go build -o maitred cmd/maitred/main.go  
    ```
 
 1. Grant maitred capabilities (PTRACE for pidfd_getfd and KILL for sending SIGCONT)
 
-   ```bash
+   ```console
    $ sudo setcap cap_sys_ptrace,cap_kill+ep ./maitred
    $ getcap ./maitred
    ./maitred = cap_kill,cap_sys_ptrace+ep
@@ -63,7 +63,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 
 1. Kill running processes
 
-   ```bash
+   ```console
    # main terminal
    $ kill -9 497961
    ```
