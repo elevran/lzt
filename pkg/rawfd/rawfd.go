@@ -39,6 +39,7 @@ func ToTCPConn(fd int) (net.Conn, error) {
 	if file == nil {
 		return nil, fmt.Errorf("os.NewFile(%d) failed", fd)
 	}
+	defer file.Close()
 
 	fc, err := net.FileConn(file)
 	if err != nil {
