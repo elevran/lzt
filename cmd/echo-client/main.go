@@ -7,45 +7,45 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
-	"time"
+	"syscall"
 
 	"github.com/elevran/lzt/pkg/rawfd"
 )
 
 var (
 	server = flag.String("server", ":3333", "IP:Port to connect to.")
-	sleep  = flag.Int("sleep", 0, "Duration to sleep after a connection is accepted.")
 	count  = flag.Int("count", 1, "Number of times to send message to server.")
 )
 
 func main() {
+	pid := syscall.Getpid()
+
 	flag.Parse()
 
 	conn, err := net.Dial("tcp", *server)
 	if err != nil {
-		log.Panicln(err)
+		log.Fatalln(err)
 	}
 	defer conn.Close()
 
-	fd, err := rawfd.FromConnection(conn)
+	fd, err := rawfd.FromTCPConn(conn)
 	if err != nil {
-		log.Println("failed to get file descriptor:", err)
+		log.Fatalln("failed to get file descriptor:", err)
 	}
 
-	defer log.Println(os.Getpid(), "closed connection", fd)
+	defer log.Println(pid, "closed connection", fd)
 
-	log.Printf("client (PID %d) new connection %d (%s -> %s)\n", os.Getpid(),
-		fd, conn.LocalAddr().String(), conn.RemoteAddr().String())
+	log.Printf("client (PID %d) new connection %d (%s -> %s)\n", pid, fd,
+		conn.LocalAddr().String(), conn.RemoteAddr().String())
 
-	if *sleep != 0 {
-		log.Println(os.Getpid(), "sleeping for", *sleep, "seconds")
-		time.Sleep(time.Duration(*sleep) * time.Second)
-		log.Println(os.Getpid(), "done sleeping")
+	log.Println("process", pid, "sending SIGSTOP to self")
+	if err = syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+		log.Fatalln("process", pid, "failed to stop:", err)
 	}
+	log.Println("process", pid, "continuing")
 
 	reader := bufio.NewReader(conn)
-	line := fmt.Sprintln("PING from", conn.LocalAddr().String())
+	line := fmt.Sprintln("PING from", pid, conn.LocalAddr().String())
 
 	for _ = range *count {
 		_, err = conn.Write([]byte(line))

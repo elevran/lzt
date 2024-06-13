@@ -6,26 +6,26 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"strings"
-	"time"
+	"syscall"
 
 	"github.com/elevran/lzt/pkg/rawfd"
 )
 
 var (
 	listen = flag.String("listen", ":3333", "IP:Port to accept connections on.")
-	sleep  = flag.Int("sleep", 0, "Duration to sleep after a connection is accepted.")
 )
 
 func main() {
+	pid := syscall.Getpid()
+
 	flag.Parse()
 
 	l, err := net.Listen("tcp", *listen)
 	if err != nil {
 		log.Panicln(err)
 	}
-	log.Printf("server (PID %d) listening on %s", os.Getpid(), *listen)
+	log.Printf("server (PID %d) listening on %s", pid, *listen)
 	defer l.Close()
 
 	for {
@@ -35,28 +35,30 @@ func main() {
 			continue
 		}
 
-		go handleRequest(conn)
+		go handleRequest(pid, conn)
 	}
 }
 
-func handleRequest(conn net.Conn) {
-	fd, err := rawfd.FromConnection(conn)
+func handleRequest(pid int, conn net.Conn) {
+	fd, err := rawfd.FromTCPConn(conn)
 	if err != nil {
+		_ = conn.Close()
 		log.Println("failed to get file descriptor:", err)
+		return
 	}
 
-	log.Printf("%d accepted connection %d (%s -> %s)\n", os.Getpid(),
-		fd, conn.RemoteAddr().String(), conn.LocalAddr().String())
+	log.Printf("process %d accepted connection %d (%s -> %s)\n", pid, fd,
+		conn.RemoteAddr().String(), conn.LocalAddr().String())
 
-	if *sleep != 0 {
-		log.Println(os.Getpid(), "sleeping for", *sleep, "seconds")
-		time.Sleep(time.Duration(*sleep) * time.Second)
-		log.Println(os.Getpid(), "done sleeping")
+	log.Println("process", pid, "sending SIGSTOP to self")
+	if err = syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+		log.Fatalln("process", pid, "failed to stop:", err)
 	}
+	log.Println("process", pid, "continuing")
 
 	defer func() {
 		_ = conn.Close()
-		log.Println(os.Getpid(), "closed connection", fd)
+		log.Println(pid, "closed connection", fd)
 	}()
 
 	connReader := bufio.NewReader(conn)
