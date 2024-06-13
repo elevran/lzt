@@ -17,7 +17,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 
 1. Build executables
 
-   ```sh
+   ```bash
    go build -o echo-server cmd/echo-server/main.go
    go build -o echo-client cmd/echo-client/main.go
    go build -o maitred cmd/maitred/main.go  
@@ -25,7 +25,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 
 1. Grant maitred capabilities (PTRACE for pidfd_getfd and KILL for sending SIGCONT)
 
-   ```sh
+   ```bash
    $ sudo setcap cap_sys_ptrace,cap_kill+ep ./maitred
    $ getcap ./maitred
    ./maitred = cap_kill,cap_sys_ptrace+ep
@@ -34,7 +34,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 1. Run demo (easier with three terminals: main for echo client and server and two more,
  one for each supervisor)
 
-   ```sh
+   ```console
    $ # main terminal
    $ ./echo-server &
    [1] 497961
@@ -63,7 +63,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 
 1. Kill running processes
 
-   ```sh
+   ```bash
    # main terminal
    $ kill -9 497961
    ```
