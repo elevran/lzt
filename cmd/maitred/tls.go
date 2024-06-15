@@ -48,9 +48,10 @@ func tlsClientSide(supervisor, monitored int, conn net.Conn, tlsConfig *tls.Conf
 	state := tlsConn.ConnectionState()
 	if len(state.PeerCertificates) > 0 {
 		peerCert := state.PeerCertificates[0]
-		log.Printf("supervisor (pid %d) TLS handshake complete with Subject: %s\n", peerCert.Subject)
+		log.Printf("supervisor (pid %d) TLS handshake complete with Subject: %s\n",
+			supervisor, peerCert.Subject)
 	} else {
-		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n")
+		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n", supervisor)
 	}
 	return syscall.Kill(monitored, syscall.SIGCONT)
 }
@@ -75,9 +76,10 @@ func tlsServerSide(supervisor, monitored int, conn net.Conn, tlsConfig *tls.Conf
 	state := tlsConn.ConnectionState()
 	if len(state.PeerCertificates) > 0 {
 		peerCert := state.PeerCertificates[0]
-		log.Printf("supervisor (pid %d) TLS handshake complete with Subject: %s\n", peerCert.Subject)
+		log.Printf("supervisor (pid %d) TLS handshake complete with Subject: %s\n",
+			supervisor, peerCert.Subject)
 	} else {
-		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n")
+		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n", supervisor)
 	}
 	return syscall.Kill(monitored, syscall.SIGCONT)
 }
