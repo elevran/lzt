@@ -13,14 +13,15 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
  `echo-client` and `echo-server` on start-up) and the file descriptor of the newly
  created socket (typically fd #4 on the server and #3 on the client).
  The supervisors exchange PING/PONG messages and then resume the suspended echo
- processes. The PING/PONG can be later replaced by AuthN/AuthZ (e.g., mTLS).
+ processes. The PING/PONG can be replaced by AuthN/AuthZ (e.g., mTLS, see
+ [below](#enabling-mtls-between-supervisors) for instructions).
 
 1. Build executables
 
    ```console
-   $ go build -o echo-server cmd/echo-server/main.go
-   $ go build -o echo-client cmd/echo-client/main.go
-   $ go build -o maitred cmd/maitred/main.go  
+   $ go build ./cmd/echo-server
+   $ go build ./cmd/echo-client
+   $ go build ./cmd/maitred
    ```
 
 1. Grant maitred capabilities (PTRACE for pidfd_getfd and KILL for sending SIGCONT)
@@ -67,3 +68,26 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
    $ # main terminal:
    $ kill -9 497961
    ```
+
+### Enabling mTLS between supervisors
+
+1. Create CA, server- and client-side certificate. This could also be done by
+ the supervisor agents at runtime using a certificate management system, such
+ as SPIFFE/SPIRE. For simplicity, we pre-created these using [this demo][cfssl-demo]
+ with modified configs (e.g., `O`, `OU`, `CN` and expiration time). Certificates
+ are stored under the `cmd/maitred/certs` directory and are PEM encoded.
+
+1. Repeat same steps as above (PING/PONG case), but invoke `maitred` agents
+ with additional flags to provide required TLS credentials created above:
+ `-ca <CA certificate> -cert <certificate file> -key <key file>`.
+ Each `maitred` agent would print the `Subject` field of the certificate
+ received before sending `SIGCONT` to the echo client and server.
+
+   ```console
+   $ ./maitred -server -fd 4 -pid 497961 -ca ./certs/ca.pem -cert ./cert/server.pem -key ./certs/server-key.pem
+   ...
+   $ ./maitred -fd 3 -pid 498361 -ca ./certs/ca.pem -cert ./cert/client.pem -key ./certs/client-key.pem
+   ...
+   ```
+
+[cfssl-demo]: https://github.com/mradile/cfssl-mtls-demo/

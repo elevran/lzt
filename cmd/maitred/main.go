@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net"
+	"os"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -26,13 +25,17 @@ var (
 	pid      = flag.Int("pid", INVALID_PID, "The pid of the monitored process")
 	fd       = flag.Int("fd", INVALID_FD, "The file descriptor to duplicate")
 	isServer = flag.Bool("server", false, "Set if the monitored process runs as server")
+
+	ca   = flag.String("ca", "", "CA certificate file (PEM encoded)")
+	cert = flag.String("cert", "", "workload certificate file (PEM encoded)")
+	key  = flag.String("key", "", "workload private key file (PEM encoded)")
 )
 
 func main() {
 	flag.Parse()
-	supervisor := syscall.Getpid()
+	supervisorPID := syscall.Getpid()
 
-	if err := validateCapabilities(supervisor); err != nil {
+	if err := validateCapabilities(supervisorPID); err != nil {
 		log.Fatalln("invalid capabilities:", err)
 	}
 
@@ -40,16 +43,31 @@ func main() {
 		log.Fatalln("invalid options:", err)
 	}
 
-	conn, err := duplicateProcessDescriptor(supervisor, *pid, *fd)
+	conn, err := duplicateProcessDescriptor(supervisorPID, *pid, *fd)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer conn.Close()
 
+	if *ca != "" || *cert != "" || *key != "" { // TLS configuration defined
+		tlsConfig, err := loadTLSConfig(*ca, *cert, *key)
+		if err != nil {
+			log.Fatalln("failed to load TLS configuration: %w", err)
+		}
+
+		if *isServer {
+			tlsServerSide(supervisorPID, *pid, conn, tlsConfig)
+		} else {
+			tlsClientSide(supervisorPID, *pid, conn, tlsConfig)
+		}
+		return
+	}
+
+	// no TLS files provided, use regular TCP exchange
 	if *isServer {
-		serverSide(supervisor, *pid, conn)
+		serverSide(supervisorPID, *pid, conn)
 	} else {
-		clientSide(supervisor, *pid, conn)
+		clientSide(supervisorPID, *pid, conn)
 	}
 }
 
@@ -74,8 +92,20 @@ func validateOptions() error {
 		return errors.New("valid pid required")
 	} else if *fd == INVALID_FD || *fd < 0 {
 		return errors.New("valid fd required")
+	} else if *ca != "" || *cert != "" || *key != "" { // TLS configuration defined
+		if !fileReadable(*ca) || !fileReadable(*cert) || !fileReadable(*key) {
+			return errors.New("valid TLS configuration required")
+		}
 	}
 	return nil
+}
+
+func fileReadable(path string) bool {
+	f, err := os.Open(path)
+	defer func() {
+		_ = f.Close()
+	}()
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // duplicate the provided fd from the monitored process
@@ -94,55 +124,4 @@ func duplicateProcessDescriptor(supervisor, monitored, fd int) (net.Conn, error)
 		return nil, fmt.Errorf("pidfd(%d).Get(%d) failed: %w", monitored, fd, err)
 	}
 	return rawfd.ToTCPConn(newfd)
-}
-
-// server side handling by the supervisor.
-// NOTE: monitored process is not continued on errors!
-func serverSide(supervisor, monitored int, conn net.Conn) error {
-	log.Printf("supervisor (pid %d) hijacked %s -> %s from pid %d", supervisor,
-		conn.RemoteAddr().String(), conn.LocalAddr().String(), monitored)
-	msg := fmt.Sprintf("PONG from %d on %s -> %s\n", supervisor,
-		conn.RemoteAddr().String(), conn.LocalAddr().String())
-
-	defer conn.Close()
-
-	rdr := bufio.NewReader(conn)
-	data, err := rdr.ReadString('\n')
-	if err != nil {
-		if err != io.EOF {
-			log.Printf("supervisor (pid %d) failed to read data: %s\n", supervisor, err)
-		}
-	}
-	log.Printf("supervisor (pid %d): %s\n", supervisor, string(data))
-	_, err = conn.Write([]byte(msg))
-	if err != nil {
-		return fmt.Errorf("supervisor (pid %d) failed to send: %w", supervisor, err)
-	}
-	return syscall.Kill(monitored, syscall.SIGCONT)
-}
-
-// client side handling by the supervisor.
-// NOTE: monitored process is not continued on errors!
-func clientSide(supervisor, monitored int, conn net.Conn) error {
-	log.Printf("client side supervisor (pid %d) hijacked %s -> %s from pid %d", supervisor,
-		conn.LocalAddr().String(), conn.RemoteAddr().String(), monitored)
-	msg := fmt.Sprintf("PING from pid %d on %s -> %s\n", supervisor,
-		conn.RemoteAddr().String(), conn.LocalAddr().String())
-
-	defer conn.Close()
-
-	_, err := conn.Write([]byte(msg))
-	if err != nil {
-		return fmt.Errorf("supervisor (pid %d) failed to send: %w", supervisor, err)
-	}
-
-	rdr := bufio.NewReader(conn)
-	data, err := rdr.ReadString('\n')
-	if err != nil {
-		if err != io.EOF {
-			log.Printf("supervisor (pid %d) failed to read data: %s\n", supervisor, err)
-		}
-	}
-	log.Printf("supervisor (pid %d): %s\n", supervisor, string(data))
-	return syscall.Kill(monitored, syscall.SIGCONT)
 }
