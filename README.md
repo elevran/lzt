@@ -85,7 +85,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
    ./maitred = cap_kill,cap_net_admin,cap_sys_ptrace+ep
    ```
 
-1. Repeat invocaton steps as above (PING/PONG case), but invoke `maitred` agents
+1. Repeat invocation steps as above (PING/PONG case), but invoke `maitred` agents
  with additional flags to provide required TLS credentials created above:
  `-ca <CA certificate> -cert <certificate file> -key <key file>`.
  Each `maitred` agent would print the `Subject` field of the certificate
@@ -97,5 +97,7 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
    $ ./maitred -fd 3 -pid 498361 -ca ./certs/ca.pem -cert ./cert/client.pem -key ./certs/client-key.pem
    ...
    ```
+
+1. Sample packet capture from a specific run is available [here](./echo.cap)
 
 [cfssl-demo]: https://github.com/mradile/cfssl-mtls-demo/
