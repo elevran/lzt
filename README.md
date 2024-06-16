@@ -19,12 +19,12 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 1. Build executables
 
    ```console
-   $ go build ./cmd/echo-server
-   $ go build ./cmd/echo-client
-   $ go build ./cmd/maitred
+   go build ./cmd/echo-server
+   go build ./cmd/echo-client
+   go build ./cmd/maitred
    ```
 
-1. Grant maitred capabilities (PTRACE for pidfd_getfd and KILL for sending SIGCONT)
+1. Grant `maitred` capabilities (PTRACE for pidfd_getfd and KILL for sending SIGCONT)
 
    ```console
    $ sudo setcap cap_sys_ptrace,cap_kill+ep ./maitred
@@ -65,8 +65,8 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 1. Kill running processes
 
    ```console
-   $ # main terminal:
-   $ kill -9 497961
+   # main terminal:
+   kill -9 497961
    ```
 
 ### Enabling mTLS between supervisors
@@ -77,7 +77,15 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
  with modified configs (e.g., `O`, `OU`, `CN` and expiration time). Certificates
  are stored under the `cmd/maitred/certs` directory and are PEM encoded.
 
-1. Repeat same steps as above (PING/PONG case), but invoke `maitred` agents
+1. Grant `maitred` additional NET_ADMIN capability to allow kTLS
+
+   ```console
+   $ sudo setcap cap_sys_ptrace,cap_net_admin,cap_kill+ep ./maitred
+   $ getcap ./maitred
+   ./maitred = cap_kill,cap_net_admin,cap_sys_ptrace+ep
+   ```
+
+1. Repeat invocaton steps as above (PING/PONG case), but invoke `maitred` agents
  with additional flags to provide required TLS credentials created above:
  `-ca <CA certificate> -cert <certificate file> -key <key file>`.
  Each `maitred` agent would print the `Subject` field of the certificate

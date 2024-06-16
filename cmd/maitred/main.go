@@ -105,7 +105,7 @@ func fileReadable(path string) bool {
 	defer func() {
 		_ = f.Close()
 	}()
-	return errors.Is(err, os.ErrNotExist)
+	return err == nil
 }
 
 // duplicate the provided fd from the monitored process

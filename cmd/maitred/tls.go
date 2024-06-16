@@ -33,29 +33,6 @@ func loadTLSConfig(caPath, certPath, keyPath string) (*tls.Config, error) {
 	}, nil
 }
 
-func tlsClientSide(supervisor, monitored int, conn net.Conn, tlsConfig *tls.Config) error {
-	log.Printf("client side supervisor (pid %d) hijacked %s -> %s from pid %d", supervisor,
-		conn.LocalAddr().String(), conn.RemoteAddr().String(), monitored)
-
-	defer conn.Close()
-
-	tlsConn := tls.Client(conn, tlsConfig)
-	if err := tlsConn.Handshake(); err != nil {
-		return err
-	}
-
-	// Extract and print peer certificate
-	state := tlsConn.ConnectionState()
-	if len(state.PeerCertificates) > 0 {
-		peerCert := state.PeerCertificates[0]
-		log.Printf("supervisor (pid %d) TLS handshake complete with Subject: %s\n",
-			supervisor, peerCert.Subject)
-	} else {
-		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n", supervisor)
-	}
-	return syscall.Kill(monitored, syscall.SIGCONT)
-}
-
 // server side handling by the supervisor - TLS handshake
 // NOTE: monitored process is not continued on errors!
 func tlsServerSide(supervisor, monitored int, conn net.Conn, tlsConfig *tls.Config) error {
@@ -80,6 +57,46 @@ func tlsServerSide(supervisor, monitored int, conn net.Conn, tlsConfig *tls.Conf
 			supervisor, peerCert.Subject)
 	} else {
 		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n", supervisor)
+	}
+
+	if err := enableKTLS(conn); err != nil {
+		return fmt.Errorf("supervisor (pid %d) failed to enable kTLS for server: %w",
+			supervisor, err)
+	} else {
+		log.Printf("supervisor (pid %d) successfully enabled kTLS on server", supervisor)
+	}
+	return syscall.Kill(monitored, syscall.SIGCONT)
+}
+
+// client side handling by the supervisor - TLS handshake
+// NOTE: monitored process is not continued on errors!
+func tlsClientSide(supervisor, monitored int, conn net.Conn, tlsConfig *tls.Config) error {
+	log.Printf("client side supervisor (pid %d) hijacked %s -> %s from pid %d", supervisor,
+		conn.LocalAddr().String(), conn.RemoteAddr().String(), monitored)
+
+	defer conn.Close()
+
+	tlsConfig.ServerName = "server.lztdemo" // need to map IP to server name?
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.Handshake(); err != nil {
+		return err
+	}
+
+	// Extract and print peer certificate
+	state := tlsConn.ConnectionState()
+	if len(state.PeerCertificates) > 0 {
+		peerCert := state.PeerCertificates[0]
+		log.Printf("supervisor (pid %d) TLS handshake complete with Subject: %s\n",
+			supervisor, peerCert.Subject)
+	} else {
+		log.Printf("supervisor (pid %d) TLS handshake complete without peer\n", supervisor)
+	}
+
+	if err := enableKTLS(conn); err != nil {
+		return fmt.Errorf("supervisor (pid %d) failed to enable kTLS for client: %w",
+			supervisor, err)
+	} else {
+		log.Printf("supervisor (pid %d) successfully enabled kTLS on client", supervisor)
 	}
 	return syscall.Kill(monitored, syscall.SIGCONT)
 }
