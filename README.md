@@ -2,7 +2,7 @@
 
 eBPF and mTLS experiments
 
-## Socket interception and exchange by supervisor
+## Socket interception and data exchange by supervisor
 
 Demonstrate the use of supervisors to exchange data on existing connection. The demo
  connection uses an echo client and server. Both pause after connecting and before
