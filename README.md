@@ -7,8 +7,9 @@ eBPF and mTLS experiments
 Demonstrate the use of supervisors to exchange data on existing connection. The demo
  connection uses an echo client and server. Both pause after connecting and before
  any data is exchanged. Currently suspension is handled by voluntary call to
- `syscall.Kill(syscall.GetPid, syscall.SIGSTOP)`, but this shall be replaced by
- eBPF/system call interception.
+ `syscall.Kill(syscall.GetPid(), syscall.SIGSTOP)`, but this shall be replaced by
+ eBPF based system call interception handler. In order to pause the client and/or
+ server. pass the `--pause` flag at invocation to each.
  Supervisors (`maitred`) are invoked with the process id to monitor (printed by
  `echo-client` and `echo-server` on start-up) and the file descriptor of the newly
  created socket (typically fd #4 on the server and #3 on the client).
@@ -37,10 +38,10 @@ Demonstrate the use of supervisors to exchange data on existing connection. The 
 
    ```console
    $ # main terminal:
-   $ ./echo-server &
+   $ ./echo-server -pause &
    [1] 497961
    2024/06/13 13:15:15 server (PID 497961) listening on :3333
-   $ ./echo-client
+   $ ./echo-client -pause
    2024/06/13 13:23:51 client (PID 498361) new connection 3 (127.0.0.1:43866 -> 127.0.0.1:3333)
    2024/06/13 13:23:51 process 497961 accepted connection 4 (127.0.0.1:43866 -> 127.0.0.1:3333)
    2024/06/13 13:23:51 process 498361 sending SIGSTOP to self

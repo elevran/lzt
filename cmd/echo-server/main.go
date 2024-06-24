@@ -14,6 +14,7 @@ import (
 
 var (
 	listen = flag.String("listen", ":3333", "IP:Port to accept connections on.")
+	pause  = flag.Bool("pause", false, "automatically pause after accepting client connection.")
 )
 
 func main() {
@@ -50,9 +51,11 @@ func handleRequest(pid int, conn net.Conn) {
 	log.Printf("process %d accepted connection %d (%s -> %s)\n", pid, fd,
 		conn.RemoteAddr().String(), conn.LocalAddr().String())
 
-	log.Println("process", pid, "sending SIGSTOP to self")
-	if err = syscall.Kill(pid, syscall.SIGSTOP); err != nil {
-		log.Fatalln("process", pid, "failed to stop:", err)
+	if *pause {
+		log.Println("process", pid, "pausing - sending SIGSTOP to self")
+		if err = syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+			log.Fatalln("process", pid, "failed to stop:", err)
+		}
 	}
 	log.Println("process", pid, "continuing")
 

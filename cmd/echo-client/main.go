@@ -14,6 +14,7 @@ import (
 
 var (
 	server = flag.String("server", ":3333", "IP:Port to connect to.")
+	pause  = flag.Bool("pause", false, "automatically pause after connecting to server.")
 	count  = flag.Int("count", 1, "Number of times to send message to server.")
 )
 
@@ -38,9 +39,11 @@ func main() {
 	log.Printf("client (PID %d) new connection %d (%s -> %s)\n", pid, fd,
 		conn.LocalAddr().String(), conn.RemoteAddr().String())
 
-	log.Println("process", pid, "sending SIGSTOP to self")
-	if err = syscall.Kill(pid, syscall.SIGSTOP); err != nil {
-		log.Fatalln("process", pid, "failed to stop:", err)
+	if *pause {
+		log.Println("process", pid, "pausing - sending SIGSTOP to self")
+		if err = syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+			log.Fatalln("process", pid, "failed to stop:", err)
+		}
 	}
 	log.Println("process", pid, "continuing")
 
